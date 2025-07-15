@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  security-events: write  # This is required for SARIF upload
+
 env:
   AWS_REGION: ap-south-1                        
   IMAGE_NAME: ${{ secrets.ECR_REPOSITORY }}
