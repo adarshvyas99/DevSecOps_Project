@@ -1,0 +1,16 @@
+# Node.js
+app/node_modules/
+app/.npm/
+app/.env
+
+# Terraform
+*.tfstate
+*.tfstate.*
+infrastructure/**/.terraform/
+
+# Docker
+**/.docker-cache/
+docker-compose.override.yml
+
+# Secrets
+.env.*
