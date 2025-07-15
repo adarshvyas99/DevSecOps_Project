@@ -1,0 +1,8 @@
+# Trivy ignore file for known false positives
+# Format: CVE-ID or package-name
+
+# Example: Ignore specific CVE if it's a false positive
+# CVE-2021-44228
+
+# Ignore low severity issues in development dependencies
+# npm:semver
