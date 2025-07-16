@@ -1,4 +1,4 @@
-name: DevSecOps Pipeline
+name: DevSecOps CI/CD Pipeline
 
 on:
   push:
@@ -8,152 +8,157 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # This is required for SARIF upload
+  security-events: write
 
 env:
-  AWS_REGION: ap-south-1                        
+  AWS_REGION: ap-south-1
   IMAGE_NAME: ${{ secrets.ECR_REPOSITORY }}
 
-
 jobs:
-  security-scan:
+  code-sast-analysis:
+    name: Static Application Security Testing (Semgrep & NPM Audit)
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: app/package-lock.json
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
 
-    - name: Install dependencies
-      working-directory: app
-      run: npm ci
+      - name: Install Node Dependencies
+        working-directory: app
+        run: npm ci
 
-    - name: Run Semgrep SAST
-      uses: semgrep/semgrep-action@v1
-      with:
-        config: >-
-          p/security-audit
-          p/secrets
-          p/nodejs
-        generateSarif: "1"
-        paths: app
-      env:
-        SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      - name: Run Semgrep SAST
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/nodejs
+          generateSarif: "1"
+          paths: app
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
-    - name: Run npm audit
-      working-directory: app
-      run: npm audit --audit-level high
+      - name: Run NPM Audit (High and Above)
+        working-directory: app
+        run: npm audit --audit-level high
 
-  container-security:
+  container-image-scan:
+    name: Container Vulnerability & Best Practices Scan
     runs-on: ubuntu-latest
-    needs: security-scan
+    needs: code-sast-analysis
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
 
-    - name: Build Docker image
-      run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} ./app
+      - name: Build Docker Image
+        run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} ./app
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-        format: 'table,sarif'
-        output: 'trivy-results.sarif'
-        severity: 'CRITICAL,HIGH'
-        exit-code: '1'
+      - name: Run Trivy Scan (Critical/High only)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'table,sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
 
-    - name: Run Dockle for Dockerfile best practices
-      run: |
-        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-          -v $PWD:/root/.cache/ goodwithtech/dockle:latest \
-          --exit-code 1 --exit-level WARN ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      - name: Run Dockle for Dockerfile Linting
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $PWD:/root/.cache/ goodwithtech/dockle:latest \
+            --exit-code 1 --exit-level WARN ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-  build-and-push:
+  image-build-and-publish:
+    name: Build, Tag, Sign & Push Docker Image
     runs-on: ubuntu-latest
-    needs: [security-scan, container-security]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: container-image-scan
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     env:
       IMAGE_TAG: ${{ github.sha }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v3
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
-
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-
-    - name: Build Docker image
-      run: |
-        docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} ./app
-
-    - name: Tag Docker image for ECR
-      run: |
-        docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
-          ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-    - name: Push Docker image to ECR
-      run: |
-        docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-        docker push ${{ steps.login-ecr.outputs.registry }}:latest
-
-    - name: Install cosign
-      uses: sigstore/cosign-installer@v3.5.0
-
-    - name: Sign container image with cosign (OIDC)
-      run: |
-        cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-        cosign sign --yes ${{ steps.login-ecr.outputs.registry }}:latest
-        cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-          --certificate-oidc-subject ${{ github.actor }} \
-          --certificate-oidc-audience ${{ github.repository }} \
-          ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-        cosign verify \
-          --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-          --certificate-oidc-subject ${{ github.actor }} \
-          --certificate-oidc-audience ${{ github.repository }} \
-          ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
-
-  infra-security:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Run tfsec on Terraform
-      working-directory: infrastructure
-      run: |
-        curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
-        tfsec . \
-          --soft-fail \
-          --minimum-severity HIGH \
-          --format sarif \
-          --out tfsec-results.sarif
-
-  terraform-deploy:
-      name: Deploy Infrastructure (Terraform)
-      runs-on: ubuntu-latest
-      needs: build-and-push
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      environment: dev
-
-      steps:
-      - name: Checkout code
+      - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} ./app
+
+      - name: Tag Docker Image
+        run: |
+          docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Push Docker Image to ECR
+        run: |
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Install Cosign CLI
+        uses: sigstore/cosign-installer@v3.5.0
+
+      - name: Sign and Verify Docker Images with Cosign
+        run: |
+          cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
+
+          cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-oidc-subject ${{ github.actor }} \
+            --certificate-oidc-audience ${{ github.repository }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+          cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --certificate-oidc-subject ${{ github.actor }} \
+            --certificate-oidc-audience ${{ github.repository }} \
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
+
+  infra-code-scan:
+    name: Infrastructure Code Security Scan (tfsec)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Infrastructure Code
+        uses: actions/checkout@v4
+
+      - name: Run tfsec (Soft Fail)
+        working-directory: infrastructure
+        run: |
+          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+          tfsec . \
+            --soft-fail \
+            --minimum-severity HIGH \
+            --format sarif \
+            --out tfsec-results.sarif
+
+  terraform-deploy:
+    name: Deploy to AWS (Terraform)
+    runs-on: ubuntu-latest
+    needs: [image-build-and-publish, infra-code-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    steps:
+      - name: Checkout Infrastructure Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
