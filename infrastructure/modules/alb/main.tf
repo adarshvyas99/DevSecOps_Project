@@ -30,6 +30,8 @@ resource "aws_lb_target_group" "app" {
   target_type = "ip"
 }
 
+# Ignore HTTP-only ALB listener (demo environment)
+# tfsec:ignore:aws-elb-http-not-used
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
