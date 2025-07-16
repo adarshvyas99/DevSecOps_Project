@@ -141,7 +141,7 @@ jobs:
       - name: Sign and Verify Docker Images with Cosign
         run: |
           cosign sign --yes --identity-token "${{ env.OIDC_TOKEN }}" \
-          ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}}
+          ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           cosign sign --yes --identity-token "${{ env.OIDC_TOKEN }}" \
           cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest 
           cosign verify \
