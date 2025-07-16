@@ -60,14 +60,30 @@ jobs:
       - name: Build Docker Image
         run: docker build -t ${{ env.IMAGE_NAME }}:${{ github.sha }} ./app
 
-      - name: Run Trivy Scan (Critical/High only)
+      - name: Run Trivy vulnerability scanner (table)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          format: 'table'
-          output: 'trivy-results.sarif'
+          format: 'json'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
+
+      - name: Run Trivy vulnerability scanner (SARIF output for GitHub upload)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Upload Trivy results to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
 
       - name: Run Dockle for Dockerfile Linting
         run: |
