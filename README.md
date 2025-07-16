@@ -1,193 +1,117 @@
-# DevSecOps Secure Microservice
+# DevSecOps Microservice Deployment on AWS (CI/CD + IaC + Security)
 
-A Node.js/Express microservice with mongodb implementation demonstrating DevSecOps best practices for containerized deployments.
+This project demonstrates an end-to-end **DevSecOps pipeline** for deploying a secure, containerized Node.js microservice with a MongoDB backend (via MongoDB Atlas) to **AWS ECS Fargate**, using **GitHub Actions**, **Terraform** with remote state, and best-in-class security tooling.
 
-## Security Features
+---
 
-- **Container Security**: Multi-stage Docker builds with Alpine base images
-- **Non-root execution**: Application runs as non-privileged user
-- **Secrets Management**: No hardcoded secrets, uses environment variables and secrets managers
-- **Security Scanning**: Integrated Trivy, Semgrep, and Dockle scanning
-- **Runtime Protection**: Security contexts and capability restrictions
+## Project Structure
 
-## Quick Start
+DevSecOps_Project/
+├── app/ # Node.js Express Application
+│ ├── src/ # App source code
+│ ├── Dockerfile # Hardened Dockerfile
+│ ├── package.json
+│ └── package-lock.json
+├── .github/workflows/ # CI/CD Pipelines (GitHub Actions)
+│ └── devsecops.yml
+├── infrastructure/ # Terraform-based IaC
+│  ├── modules/ # Reusable Terraform modules
+│  │     ├── vpc/
+│  │     ├── security_groups/
+│  │     ├── alb/
+│  │     ├── ecr/
+│  │     ├── ecs/
+│  │     └── secrets_manager/
+│  ├── environments/
+│        └── dev/
+│        │     ├── main.tf # Dev environment infrastructure
+│        │     ├── terraform.tfvars # tfvars wired from GitHub Environments
+│        │     └── outputs.tf
+│        └── prod/
+├── security/                    # Security config and overrides
+│   └── semgrep.yml              # Custom Semgrep rules (optional override)
+├── docker-compose.yml # For local development (optional)
+├── .gitignore
+└── README.md
 
-### Prerequisites
+---
 
-- Docker and Docker Compose
-- Node.js 18+ (for local development)
-- Terraform (for infrastructure deployment)
+##  Features Implemented
 
-### Local Development
+###  Deployment
+- Containerized **Node.js/Express** app
+- Uses **MongoDB Atlas** (secured connection string from Secrets Manager)
+- Runs on **AWS ECS Fargate**
+- Uses **ECR** for container registry
 
-1. **Clone and setup**:
-   ```bash
-   git clone <repository-url>
-   cd DevSecOps_Project
-   npm install
-   ```
+### DevSecOps & CI/CD
+- GitHub Actions CI pipeline with:
+  -  Code checkout & build
+  -  Static code analysis (Semgrep)
+  -  Vulnerability scanning (Trivy)
+  -  Docker best practices (Dockle)
+  -  Infrastructure as Code (tfsec)
+  -  Signed container images (cosign)
+- Pushes Docker images to **ECR**
+- Signs and verifies image integrity with OIDC + Cosign
 
-2. **Create secrets directory**:
-   ```bash
-   mkdir secrets
-   echo "admin" > secrets/mongo_root_username.txt
-   echo "securepassword123" > secrets/mongo_root_password.txt
-   ```
+###  Infrastructure as Code (Terraform)
+- Modular structure for VPC, ALB, ECS, Secrets Manager, etc.
+- Secrets pulled from **AWS Secrets Manager**
+- Environments separated (`dev`, `prod` ready)
+- Uses **GitHub Environments** to wire sensitive tfvars
 
-3. **Run with Docker Compose**:
-   ```bash
-   docker-compose up --build
-   ```
+---
 
-4. **Test the application**:
-   ```bash
-   curl http://localhost:3000/
-   curl http://localhost:3000/health
-   curl http://localhost:3000/api/users
-   ```
+##  CI/CD Workflow Highlights
 
-### Security Scanning
+| Stage            | Tool/Feature       | Description                                   |
+|------------------|--------------------|-----------------------------------------------|
+| Build            | Docker             | Multi-stage, non-root, Alpine base            |
+| SAST             | Semgrep            | Analyzes `app/` source for security flaws     |
+| Dependency Scan  | `npm audit`        | Detects vulnerable Node.js packages           |
+| Image Scan       | Trivy              | Checks built image for OS & app vulnerabilities |
+| Lint Dockerfile  | Dockle             | Warns against Dockerfile misconfigurations    |
+| IaC Scan         | tfsec              | Analyzes Terraform for security issues        |
+| Container Signing| Cosign + OIDC      | Signs & verifies container integrity          |
+| Infra Provision  | Terraform          | Creates all AWS resources via modular setup   |
 
-1. **Scan Dockerfile**:
-   ```bash
-   # Install Trivy
-   docker run --rm -v $PWD:/app aquasec/trivy:latest fs /app
+---
 
-   # Install Dockle
-   docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-     -v $PWD:/root/.cache/ goodwithtech/dockle:latest <image-name>
-   ```
+##  Secrets & Environment Config
 
-2. **Static Code Analysis**:
-   ```bash
-   # Install Semgrep
-   pip install semgrep
-   semgrep --config=auto .
-   ```
+| Secret/Variable            | Source                      | Usage                                   |
+|----------------------------|-----------------------------|-----------------------------------------|
+| `AWS_ACCESS_KEY_ID`        | GitHub Secrets              | Terraform & AWS CLI auth                |
+| `AWS_SECRET_ACCESS_KEY`    | GitHub Secrets              |                                         |
+| `AWS_REGION`               | GitHub Secrets / `env`      | AWS region (e.g. ap-south-1)            |
+| `ECR_REPOSITORY`           | GitHub Secrets              | Image name & repo                       |
+| `TF_ECR_REPO_URL`          | GitHub Secrets              | Full ECR repo URL for Terraform         |
+| `SEMGREP_APP_TOKEN`        | GitHub Secrets              | For authenticated Semgrep runs          |
+| `MONGODB_URI`              | AWS Secrets Manager         | Injected securely into ECS containers   |
 
-3. **Dependency Audit**:
-   ```bash
-   npm audit
-   npm audit fix
-   ```
+---
 
-##  Infrastructure Deployment
+##  Getting Started
 
-### AWS Deployment with Terraform
-
-1. **Configure AWS credentials**:
-   ```bash
-   aws configure
-   ```
-
-2. **Deploy infrastructure**:
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-
-3. **Verify deployment**:
-   ```bash
-   terraform output
-   ```
-
-##  CI/CD Pipeline
-
-The GitHub Actions pipeline (`devsecops.yml`) includes:
-
-1. **Security Scanning**:
-   - Semgrep SAST analysis
-   - npm audit for dependencies
-   - Secrets detection
-
-2. **Container Security**:
-   - Trivy vulnerability scanning
-   - Dockle best practices check
-   - Build fails on critical issues
-
-3. **Deployment**:
-   - Secure image registry push
-   - Container signing (optional)
-
-### Required Secrets
-
-Configure these in your GitHub repository:
-
-- `SEMGREP_APP_TOKEN`: Semgrep API token
-- `GITHUB_TOKEN`: Automatically provided by GitHub
-
-## Security Checklist
-
--  Multi-stage Docker build with minimal base image
--  Non-root user execution
--  No hardcoded secrets
--  Container vulnerability scanning
--  Static code analysis
--  Dependency vulnerability checking
--  Infrastructure as Code with security scanning
--  Least-privilege IAM policies
--  Security contexts and capability restrictions
--  Health checks and monitoring
-
-##  Runtime Security
-
-### Docker Security Context
-
-```yaml
-security_opt:
-  - no-new-privileges:true
-cap_drop:
-  - ALL
-cap_add:
-  - CHOWN
-  - SETGID
-  - SETUID
-read_only: true
+### Local App Dev (Optional)
+```bash
+cd app/
+npm install
+npm run dev
 ```
-
-### Kubernetes Security Context (Optional)
-
-```yaml
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 1001
-  readOnlyRootFilesystem: true
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
+You can run the application locally using Docker Compose. This is useful for local testing, debugging, and development without relying on cloud infrastructure.
+```bash
+docker-compose up --build -d
 ```
+The app will be available at: http://localhost:3000
+The backend MongoDB will be accessible on port 27017
 
-##  Monitoring and Logging
-
-- Health check endpoint: `/health`
-- Application logs via CloudWatch
-- Container metrics monitoring
-- Security event logging
-
-##  Troubleshooting
-
-### Common Issues
-
-1. **Container fails to start**:
-   - Check user permissions
-   - Verify secrets are properly mounted
-   - Review security context settings
-
-2. **Security scan failures**:
-   - Update base images
-   - Fix dependency vulnerabilities
-   - Review Trivy ignore file
-
-3. **Database connection issues**:
-   - Verify MongoDB credentials
-   - Check network connectivity
-   - Review secrets configuration
-
-##  Additional Resources
-
-- [Docker Security Best Practices](https://docs.docker.com/develop/security-best-practices/)
-- [OWASP Container Security](https://owasp.org/www-project-container-security/)
-- [CIS Docker Benchmark](https://www.cisecurity.org/benchmark/docker)
-- [Kubernetes Security Best Practices](https://kubernetes.io/docs/concepts/security/)
+#### Stop Containers
+```bash
+docker-compose down
+```
+ #### Clean All Data (Optional)
+```bash
+docker-compose down -v
+```
