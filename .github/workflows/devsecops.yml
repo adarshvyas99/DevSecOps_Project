@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
   security-events: write
 
 env:
@@ -130,10 +131,18 @@ jobs:
 
       - name: Install Cosign CLI
         uses: sigstore/cosign-installer@v3.5.0
+        
+      - name: Get OIDC Token for Sigstore
+        id: oidc
+        run: |
+          echo "OIDC_TOKEN=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sigstore" | jq -r .value)" >> $GITHUB_ENV
 
       - name: Sign and Verify Docker Images with Cosign
         run: |
-          cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cosign sign --yes --identity-token "${{ env.OIDC_TOKEN }}" \
+          ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}}
+          cosign sign --yes --identity-token "${{ env.OIDC_TOKEN }}" \
           cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest 
           cosign verify \
           --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/.*" \
