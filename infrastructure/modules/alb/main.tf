@@ -1,11 +1,14 @@
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
+  # tfsec:ignore:aws-elb-alb-not-public
+  # This ALB is intentionally public to serve internet-facing traffic.
   internal           = false
   load_balancer_type = "application"
   subnets            = var.public_subnet_ids
   security_groups    = [var.alb_sg_id]
 
   enable_deletion_protection = false
+  drop_invalid_header_fields = true # Secure: Drops malformed/invalid headers before reaching target
 
   tags = {
     Name = "${var.project_name}-alb"

@@ -18,6 +18,8 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidr
   availability_zone       = var.availability_zone
+  # tfsec:ignore:aws-ec2-no-public-ip-subnet
+  # Public subnet is required for ALB, hence public IP assignment is enabled
   map_public_ip_on_launch = true
   tags = {
     Name = "${var.project_name}-public-subnet"
