@@ -40,7 +40,8 @@ jobs:
             p/security-audit
             p/secrets
             p/nodejs
-          args: '--sarif --output=semgrep.sarif app'
+          generateSarif: "1"
+          paths: app
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
