@@ -16,14 +16,14 @@ env:
   IMAGE_NAME: ${{ secrets.ECR_REPOSITORY }}
 
 jobs:
-  code-sast-analysis:
-    name: Static Application Security Testing (Semgrep & NPM Audit)
+  security-audit:
+    name: Auditing and vulnerability Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js Environment
+      - name: Setup Node.js Environmennt
         uses: actions/setup-node@v4
         with:
           node-version: '18'
@@ -34,23 +34,21 @@ jobs:
         working-directory: app
         run: npm ci
 
-      - name: Run Semgrep SAST
-        uses: semgrep/semgrep-action@v1
-        with:
-          entryPoint: semgrep
-          args: >-
-            --config p/security-audit
-            --config p/secrets
-            --config p/nodejs
-            --sarif
-            --output=semgrep.sarif
-            app/
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-
       - name: Run NPM Audit (High and Above)
         working-directory: app
         run: npm audit --audit-level high
+
+  sast-analysis:
+    name: Semgrep SAST Analysis
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep ci
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
   container-image-scan:
     name: Container Vulnerability & Best Practices Scan
