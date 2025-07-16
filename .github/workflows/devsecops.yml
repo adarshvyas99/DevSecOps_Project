@@ -41,8 +41,11 @@ jobs:
             p/security-audit
             p/secrets
             p/nodejs
-          generateSarif: "1"
-          paths: app
+          entryPoint: semgrep
+          args: >-
+            --sarif
+            --output=semgrep.sarif
+            app/
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
 
@@ -143,7 +146,7 @@ jobs:
           cosign sign --yes --identity-token "${{ env.OIDC_TOKEN }}" \
           ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           cosign sign --yes --identity-token "${{ env.OIDC_TOKEN }}" \
-          cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest 
+          ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest 
           cosign verify \
           --certificate-identity-regexp "https://github.com/${{ github.repository }}/.github/workflows/.*" \
           --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
