@@ -6,6 +6,7 @@ app/.env
 # Terraform
 *.tfstate
 *.tfstate.*
+infrastructure/**/.terraform.lock.hcl
 infrastructure/**/.terraform/
 
 # Docker

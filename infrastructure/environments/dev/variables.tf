@@ -25,13 +25,11 @@ variable "availability_zone" {
 variable "enable_nat" {
   description = "Enable NAT Gateway for private subnet egress"
   type        = bool
-  default     = true
 }
 variable "ecs_container_image" {
   description = "ECR image URL with tag"
   type        = string
 }
-
 variable "mongodb_connection_uri" {
   description = "MongoDB connection string from Atlas"
   type        = string
