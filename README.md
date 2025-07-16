@@ -6,35 +6,36 @@ This project demonstrates an end-to-end **DevSecOps pipeline** for deploying a s
 
 ## Project Structure
 
+```
 DevSecOps_Project/
-├── app/ # Node.js Express Application
-│ ├── src/ # App source code
-│ ├── Dockerfile # Hardened Dockerfile
-│ ├── package.json
-│ └── package-lock.json
-├── .github/workflows/ # CI/CD Pipelines (GitHub Actions)
-│ └── devsecops.yml
-├── infrastructure/ # Terraform-based IaC
-│  ├── modules/ # Reusable Terraform modules
-│  │     ├── vpc/
-│  │     ├── security_groups/
-│  │     ├── alb/
-│  │     ├── ecr/
-│  │     ├── ecs/
-│  │     └── secrets_manager/
-│  ├── environments/
-│        └── dev/
-│        │     ├── main.tf # Dev environment infrastructure
-│        │     ├── terraform.tfvars # tfvars wired from GitHub Environments
-│        │     └── outputs.tf
-│        └── prod/
-├── security/                    # Security config and overrides
-│   └── semgrep.yml              # Custom Semgrep rules (optional override)
-├── docker-compose.yml # For local development (optional)
-├── .pre-commit-config.yml # For local checks
-├── .gitignore
-└── README.md
-
+  ├── app/ # Node.js Express Application
+  │ ├── src/ # App source code
+  │ ├── Dockerfile # Hardened Dockerfile
+  │ ├── package.json
+  │ └── package-lock.json
+  ├── .github/workflows/ # CI/CD Pipelines (GitHub Actions)
+  │ └── devsecops.yml
+  ├── infrastructure/ # Terraform-based IaC
+  │  ├── modules/ # Reusable Terraform modules
+  │  │     ├── vpc/
+  │  │     ├── security_groups/
+  │  │     ├── alb/
+  │  │     ├── ecr/
+  │  │     ├── ecs/
+  │  │     └── secrets_manager/
+  │  ├── environments/
+  │        └── dev/
+  │        │     ├── main.tf # Dev environment infrastructure
+  │        │     ├── terraform.tfvars # tfvars wired from GitHub Environments
+  │        │     └── outputs.tf
+  │        └── prod/
+  ├── security/                    # Security config and overrides
+  │   └── semgrep.yml              # Custom Semgrep rules (optional override)
+  ├── docker-compose.yml # For local development (optional)
+  ├── .pre-commit-config.yml # For local checks
+  ├── .gitignore
+  └── README.md
+```
 ---
 
 ##  Features Implemented
