@@ -31,6 +31,7 @@ DevSecOps_Project/
 ├── security/                    # Security config and overrides
 │   └── semgrep.yml              # Custom Semgrep rules (optional override)
 ├── docker-compose.yml # For local development (optional)
+├── .pre-commit-config.yml # For local checks
 ├── .gitignore
 └── README.md
 
@@ -52,8 +53,8 @@ DevSecOps_Project/
   -  Docker best practices (Dockle)
   -  Infrastructure as Code (tfsec)
   -  Signed container images (cosign)
-- Pushes Docker images to **ECR**
-- Signs and verifies image integrity with OIDC + Cosign
+  -  Pushes Docker images to **ECR**
+  -  Signs and verifies image integrity with OIDC + Cosign
 
 ###  Infrastructure as Code (Terraform)
 - Modular structure for VPC, ALB, ECS, Secrets Manager, etc.
@@ -100,18 +101,36 @@ cd app/
 npm install
 npm run dev
 ```
+#### Pre-commit Setup
+
+1. Install pre-commit:
+```bash
+pip install pre-commit
+```
+2. Install hooks:
+```bash
+pre-commit install
+```
+3. Run all hooks manually:
+```bash
+pre-commit run --all-files
+```
+
+#### Local Container Environment
+
 You can run the application locally using Docker Compose. This is useful for local testing, debugging, and development without relying on cloud infrastructure.
+##### Start Container
 ```bash
 docker-compose up --build -d
 ```
 The app will be available at: http://localhost:3000
 The backend MongoDB will be accessible on port 27017
 
-#### Stop Containers
+##### Stop Containers
 ```bash
 docker-compose down
 ```
- #### Clean All Data (Optional)
+ ##### Clean All Data (Optional)
 ```bash
 docker-compose down -v
 ```
