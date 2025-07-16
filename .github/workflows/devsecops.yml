@@ -84,7 +84,6 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-
       - name: Run Dockle for Dockerfile Linting
         run: |
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
@@ -154,10 +153,15 @@ jobs:
       - name: Checkout Infrastructure Code
         uses: actions/checkout@v4
 
-      - name: Run tfsec (Soft Fail)
+      - name: Install tfsec
+        run: |
+          curl -sLo tfsec https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64
+          chmod +x tfsec
+          sudo mv tfsec /usr/local/bin/
+
+      - name: Run tfsec on Terraform (Soft Fail)
         working-directory: infrastructure
         run: |
-          curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
           tfsec . \
             --soft-fail \
             --minimum-severity HIGH \
