@@ -1,0 +1,30 @@
+rules:
+  - id: hardcoded-secrets
+    pattern-either:
+      - pattern: |
+          $PASSWORD = "..."
+      - pattern: |
+          $API_KEY = "..."
+      - pattern: |
+          $SECRET = "..."
+    message: "Hardcoded secret detected"
+    languages: [javascript, typescript]
+    severity: ERROR
+
+  - id: sql-injection
+    pattern-either:
+      - pattern: |
+          $QUERY = "SELECT * FROM " + $USER_INPUT
+      - pattern: |
+          db.query("SELECT * FROM " + $USER_INPUT)
+    message: "Potential SQL injection vulnerability"
+    languages: [javascript, typescript]
+    severity: ERROR
+
+  - id: unsafe-eval
+    pattern-either:
+      - pattern: eval($X)
+      - pattern: Function($X)
+    message: "Use of eval() or Function() constructor is dangerous"
+    languages: [javascript, typescript]
+    severity: WARNING

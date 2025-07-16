@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  app:
+    build: ./app/
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/devsecops
+      - PORT=3000
+    depends_on:
+      - mongo
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - app-network
+
+  mongo:
+    image: mongo:7-jammy
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME_FILE=/run/secrets/mongo_root_username
+      - MONGO_INITDB_ROOT_PASSWORD_FILE=/run/secrets/mongo_root_password
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    networks:
+      - app-network
+    secrets:
+      - mongo_root_username
+      - mongo_root_password
+
+volumes:
+  mongo_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge
+
+secrets:
+  mongo_root_username:
+    file: ./secrets/mongo_root_username.txt
+  mongo_root_password:
+    file: ./secrets/mongo_root_password.txt
