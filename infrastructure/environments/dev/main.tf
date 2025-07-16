@@ -36,7 +36,7 @@ module "secrets" {
 module "ecs" {
   source               = "../../modules/ecs"
   project_name         = var.project_name
-  container_image      = "${var.ecr_repo_url}:${var.image_tag}"
+  container_image      = var.ecs_container_image
   mongodb_secret_arn   = module.secrets.mongodb_secret_arn
   private_subnet_ids   = [module.vpc.private_subnet_id]
   ecs_sg_id            = module.security_groups.ecs_sg_id

@@ -27,6 +27,11 @@ variable "enable_nat" {
   type        = bool
   default     = true
 }
+variable "ecs_container_image" {
+  description = "ECR image URL with tag"
+  type        = string
+}
+
 variable "mongodb_connection_uri" {
   description = "MongoDB connection string from Atlas"
   type        = string
