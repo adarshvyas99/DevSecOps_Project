@@ -1,3 +1,5 @@
+# Allowing public ingress on ALB is intentional to expose the application
+# tfsec:ignore:aws-ec2-no-public-ingress-sgr
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Security group for ALB"
@@ -31,11 +33,22 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
+# ECS tasks need outbound internet access (e.g. to MongoDB Atlas, package registries)
+# tfsec:ignore:aws-ec2-no-public-egress-sgr
+
 resource "aws_security_group" "ecs_sg" {
   name        = "${var.project_name}-ecs-sg"
   description = "Security group for ECS service"
   vpc_id      = var.vpc_id
 
+  ingress {
+    description = "Allow traffic from ALB"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+  
   egress {
     from_port   = 0
     to_port     = 0
