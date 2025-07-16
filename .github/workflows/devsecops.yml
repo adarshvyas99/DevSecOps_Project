@@ -134,17 +134,9 @@ jobs:
       - name: Sign and Verify Docker Images with Cosign
         run: |
           cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
-
-          cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --certificate-oidc-subject ${{ github.actor }} \
-            --certificate-oidc-audience ${{ github.repository }} \
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-          cosign verify --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --certificate-oidc-subject ${{ github.actor }} \
-            --certificate-oidc-audience ${{ github.repository }} \
-            ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
+          cosign sign --yes ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latestI'm 
+          cosign verify ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cosign verify ${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:latest
 
   infra-code-scan:
     name: Infrastructure Code Security Scan (tfsec)
